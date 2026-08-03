@@ -44,7 +44,8 @@ void delay()
 int main()
 { while(1)
  {
- unsigned char a[]="IGNITE EMBEDDED     SYSTEMS",i;
+ unsigned char a[]="IGNITE EMBEDDED SYSTEMS";
+ unsigned int i;
  LPC_PINCON->PINSEL0=0;
  LPC_PINCON->PINSEL1=0;
  LPC_GPIO0->FIODIR=(1<<10)|(1<<11)|(0XFF<<15);
