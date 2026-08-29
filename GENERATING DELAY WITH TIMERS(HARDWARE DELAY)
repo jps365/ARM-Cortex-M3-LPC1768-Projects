@@ -1,0 +1,23 @@
+#include<lpc17xx.h>
+#include<system_lpc17xx.h>
+
+/*-------------HARDWARE DELAY GENERATION---------------*/
+void TIMER0_delay_1sec()
+{
+ LPC_TIM0->TCR=0x02;
+ LPC_TIM0->PR=1799;
+ LPC_TIM0->TCR=0x01;
+ while(LPC_TIM0->TC<1000); // GENERATING 1SEC DELAY
+ LPC_TIM0->TCR=0x00;
+}
+/*------------MAIN FUNCTION-------------*/
+int main()
+{
+ LPC_PINCON->PINSEL3=0x00000000;
+ LPC_GPIO1->FIODIR=0xFF<<19;
+ while(1)
+ {
+  LPC_GPIO1->FIOPIN^=(0xFF<<19);
+  TIMER0_delay_1sec();
+ }
+}
