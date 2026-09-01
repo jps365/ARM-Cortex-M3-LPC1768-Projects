@@ -1,0 +1,214 @@
+#include <lpc17xx.h>
+#include <system_lpc17xx.h>
+
+/*----------------  DELAY   ----------------------*/
+void delay()
+{
+    unsigned int i;
+
+    for(i = 0; i < 50000; i++);
+}
+
+/*--------------- LONG DELAY FOR INTERRUPT ------------------*/
+void long_delay()
+{
+    unsigned int i;
+
+    /* Increase this value for longer display time */
+    for(i = 0; i < 3000000; i++);
+}
+
+/*------------------- LCD COMMAND ---------------------*/
+void lcd_cmd(unsigned char a)
+{
+    /* Clear D0-D7 */
+    LPC_GPIO0->FIOCLR = (0xFF << 15);
+
+    /* RS = 0 */
+    LPC_GPIO0->FIOCLR = (1 << 10);
+
+    /* Send command */
+    LPC_GPIO0->FIOSET = ((unsigned int)a << 15);
+
+    /* EN = 1 */
+    LPC_GPIO0->FIOSET = (1 << 11);
+
+    delay();
+
+    /* EN = 0 */
+    LPC_GPIO0->FIOCLR = (1 << 11);
+
+    delay();
+}
+
+/*------------------ LCD DATA ---------------------------*/
+void lcd_data(unsigned char a)
+{
+    /* Clear D0-D7 */
+    LPC_GPIO0->FIOCLR = (0xFF << 15);
+
+    /* RS = 1 */
+    LPC_GPIO0->FIOSET = (1 << 10);
+
+    /* Send data */
+    LPC_GPIO0->FIOSET = ((unsigned int)a << 15);
+
+    /* EN = 1 */
+    LPC_GPIO0->FIOSET = (1 << 11);
+
+    delay();
+
+    /* EN = 0 */
+    LPC_GPIO0->FIOCLR = (1 << 11);
+
+    delay();
+}
+
+/*------------------ LCD STRING ---------------------*/
+
+void lcd_string(unsigned char *str)
+{
+    unsigned int i;
+
+    for(i = 0; str[i] != '\0'; i++)
+    {
+        lcd_data(str[i]);
+    }
+}
+
+/*----------------- LCD INITIALIZATION -------------------*/
+void lcd_init()
+{
+    delay();
+    delay();
+
+    lcd_cmd(0x38);       /* 8-bit, 2-line */
+    delay();
+
+    lcd_cmd(0x0C);       /* Display ON, cursor OFF */
+    delay();
+
+    lcd_cmd(0x01);       /* Clear LCD */
+    delay();
+
+    lcd_cmd(0x80);       /* First line */
+    delay();
+}
+
+/*------------------- DISPLAY HELLO ---------------------*/
+void display_hello()
+{
+    lcd_cmd(0x01);
+    delay();
+
+    lcd_cmd(0x80);
+
+    lcd_string((unsigned char *)"HELLO");
+}
+
+/*----------------- GPIO INTERRUPT HANDLER  SWITCH = P2.11 ----------------------*/
+void EINT3_IRQHandler(void)
+{
+    
+       //Check whether P2.11 caused the interrupt
+
+    if(LPC_GPIOINT->IO2IntStatF & (1 << 11))
+    {
+        
+          // CLEAR INTERRUPT FLAG
+
+        LPC_GPIOINT->IO2IntClr = (1 << 11);
+
+        
+        //   Display SULLURUPETA
+        
+        lcd_cmd(0x01);
+        delay();
+
+        lcd_cmd(0x80);
+
+        lcd_string((unsigned char *)"SULLURUPETA");
+
+        /*
+           Keep SULLURUPETA displayed
+           for a longer time
+        */
+        long_delay();
+
+        /*
+           After long delay,
+           display HELLO again
+        */
+        display_hello();
+    }
+}
+
+/*----------------- MAIN ------------------*/
+int main()
+{
+   
+
+  /*--------------- CONFIGURE LCD PINS AS GPIO ----------------------*/
+
+    /* P0.10 -> GPIO */
+    LPC_PINCON->PINSEL0 &= ~(3 << 20);
+
+    /* P0.11 -> GPIO */
+    LPC_PINCON->PINSEL0 &= ~(3 << 22);
+
+    /* P0.15 -> GPIO */
+    LPC_PINCON->PINSEL0 &= ~(3 << 30);
+
+    /* P0.16-P0.31 -> GPIO */
+    LPC_PINCON->PINSEL1 = 0x00000000;
+
+
+    /*---------------------- LCD PINS OUTPUT -----------------*/
+
+    LPC_GPIO0->FIODIR |= (1 << 10);
+    LPC_GPIO0->FIODIR |= (1 << 11);
+
+    /* P0.15-P0.22 as OUTPUT */
+    LPC_GPIO0->FIODIR |= (0xFF << 15);
+
+
+    /*----------- P2.11 SWITCH ---------------------*/
+				 
+    /* P2.11 -> GPIO */
+    LPC_PINCON->PINSEL4 &= ~(3 << 22);
+
+    /* P2.11 -> INPUT */
+    LPC_GPIO2->FIODIR &= ~(1 << 11);
+
+
+    /*----------------- INTERNAL PULL-UP ------------------*/
+
+    
+    LPC_PINCON->PINMODE4 &= ~(3 << 22);
+
+    LPC_GPIOINT->IO2IntClr = (1 << 11);
+
+
+    /*---------------------- ENABLE FALLING EDGE INTERRUPT ---------------------------*/
+
+   
+    LPC_GPIOINT->IO2IntEnF |= (1 << 11);
+
+
+    NVIC_ClearPendingIRQ(EINT3_IRQn);
+
+    NVIC_EnableIRQ(EINT3_IRQn);
+
+
+    lcd_init();
+
+   display_hello();
+
+
+    while(1)
+    {
+        
+           // Do nothing here.
+
+    }
+}
